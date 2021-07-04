@@ -1,15 +1,10 @@
 package com.google.ar.core.examples.java.helloar;
 
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.res.Configuration;
+import android.content.SharedPreferences;
 import android.content.res.Resources;
-import android.hardware.camera2.CameraAccessException;
-import android.hardware.camera2.CameraCharacteristics;
-import android.hardware.camera2.CameraManager;
 import android.media.Image;
-import android.opengl.GLES11Ext;
 import android.opengl.GLES30;
 import android.opengl.GLSurfaceView;
 import android.opengl.Matrix;
@@ -23,17 +18,17 @@ import android.widget.ImageButton;
 import android.widget.PopupMenu;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+
 import com.google.ar.core.Anchor;
 import com.google.ar.core.ArCoreApk;
 import com.google.ar.core.Camera;
 import com.google.ar.core.Config;
 import com.google.ar.core.Config.InstantPlacementMode;
-import com.google.ar.core.Coordinates2d;
 import com.google.ar.core.Frame;
 import com.google.ar.core.HitResult;
-import com.google.ar.core.ImageMetadata;
 import com.google.ar.core.InstantPlacementPoint;
 import com.google.ar.core.LightEstimate;
 import com.google.ar.core.Plane;
@@ -66,7 +61,6 @@ import com.google.ar.core.examples.java.common.samplerender.arcore.PlaneRenderer
 import com.google.ar.core.examples.java.common.samplerender.arcore.SpecularCubemapFilter;
 import com.google.ar.core.exceptions.CameraNotAvailableException;
 import com.google.ar.core.exceptions.CloudAnchorsNotConfiguredException;
-import com.google.ar.core.exceptions.MetadataNotFoundException;
 import com.google.ar.core.exceptions.NotYetAvailableException;
 import com.google.ar.core.exceptions.UnavailableApkTooOldException;
 import com.google.ar.core.exceptions.UnavailableArcoreNotInstalledException;
@@ -84,16 +78,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.FloatBuffer;
-import java.nio.MappedByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
-import static com.google.ar.core.Coordinates2d.OPENGL_NORMALIZED_DEVICE_COORDINATES;
-import static com.google.ar.core.Coordinates2d.TEXTURE_NORMALIZED;
 import static com.google.ar.core.Session.FeatureMapQuality.GOOD;
-import static com.google.ar.core.Session.FeatureMapQuality.INSUFFICIENT;
 import static com.google.ar.core.Session.FeatureMapQuality.SUFFICIENT;
 
 
@@ -201,6 +192,14 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
     private int viewHeight;
     private float deg=0;
 
+    //ADD
+    protected static final String HOSTED_ANCHOR_IDS = "anchor_ids";
+    protected static final String HOSTED_ANCHOR_NAMES = "anchor_names";
+    protected static final String HOSTED_ANCHOR_MINUTES = "anchor_minutes";
+    private String cloudAnchorId;
+    private SharedPreferences sharedPreferences;
+
+
     //INIT cloud anchor state
     private enum AppAnchorState {
         NONE,
@@ -219,22 +218,6 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
-        //add
-//        try {
-//            createSession();
-//        } catch (UnavailableSdkTooOldException e) {
-//            e.printStackTrace();
-//        } catch (UnavailableDeviceNotCompatibleException e) {
-//            e.printStackTrace();
-//        } catch (UnavailableArcoreNotInstalledException e) {
-//            e.printStackTrace();
-//        } catch (UnavailableApkTooOldException e) {
-//            e.printStackTrace();
-//        }
-        //
-
-
         setContentView(R.layout.scan);
         surfaceView = findViewById(R.id.surfacev);
         depthSurfaceView=findViewById(R.id.surfacev);
@@ -242,10 +225,18 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
         displayRotationHelper = new DisplayRotationHelper(/*context=*/ this);
         pc= new ArrayList<>();
         Button twoDbtn=(Button)findViewById(R.id.twodee);
+        //add resolve button
+        Button resolveButton =(Button)findViewById(R.id.resolve);
         twoDbtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 passTwoD();
+            }
+        });
+        resolveButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+               resolveAnchor();
             }
         });
         // Set up touch listener.
@@ -295,6 +286,13 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
             Intent intent=new Intent(this,PointCloudDrawing.class);
             //intent.putExtra("data",pc);
             startActivity(intent);
+    }
+    private void resolveAnchor(){
+
+        PointCloudSaving.pointC=pc;
+        Intent intent=new Intent(this,PointCloudDrawing.class);
+
+        startActivity(intent);
     }
 
     /** Menu button to launch feature specific settings. */
@@ -401,7 +399,7 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
         super.onRequestPermissionsResult(requestCode, permissions, results);
         if (!CameraPermissionHelper.hasCameraPermission(this)) {
             // Use toast instead of snackbar here since the activity will exit.
-            Toast.makeText(this, "Camera permission is needed to run this application", Toast.LENGTH_LONG)
+            Toast.makeText(getApplicationContext(), "Camera permission is needed to run this application", Toast.LENGTH_LONG)
                     .show();
             if (!CameraPermissionHelper.shouldShowRequestPermissionRationale(this)) {
                 // Permission denied with checking "Do not ask again".
@@ -524,6 +522,7 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                Toast.makeText(getApplicationContext(), "Hello", Toast.LENGTH_SHORT).show();
                 String msg=String.format("widrh:%d\r\nheight:%d\r\ndeg:%f",viewWidth,viewHeight,deg);
                 degView.setText(msg);
             }
@@ -788,7 +787,6 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
                         rowStride=plane.getRowStride();
                         depthBuffer=plane.getBuffer();
                     } catch (NotYetAvailableException e) {
-//            e.printStackTrace();
                     }
                     //翻轉=>XY互換且縮放
                     int xDepth=(int)(y*depthXScale);
@@ -823,31 +821,30 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
                     Anchor anchor = session.createAnchor(pose);
                     Session.FeatureMapQuality quality = session.estimateFeatureMapQualityForHosting(frame.getCamera().getPose());
                     Log.d("quality: ",quality+"");
-
-                    Context context = getApplicationContext();
-                    CharSequence text = "quality: " + quality;
                     int duration = Toast.LENGTH_LONG;
                     Anchor.CloudAnchorState state = anchor.getCloudAnchorState();
                     if (state.isError()) {
                         Log.e(TAG, "Error hosting a cloud anchor, state " + state);
                         return;
                     }
-                    cloudAnchorManager.hostCloudAnchor(anchor, new HostListener());
-                    Log.d("Cloud Anchor id: ",anchor.getCloudAnchorId());
+                      anchor = session.hostCloudAnchor(anchor);
+//                    cloudAnchorManager.hostCloudAnchor(anchor, new HostListener());
+//                    Toast.makeText(getApplicationContext(),"Cloud Anchor id:"+anchor.getCloudAnchorId(),duration).show();
+//                    Log.d("Cloud Anchor id: ",anchor.getCloudAnchorId());
                     Log.d("Cloud Anchor state: ",anchor.getCloudAnchorState()+"");
                     if (quality==SUFFICIENT||quality==GOOD&&cameraTrackingState==TrackingState.TRACKING){
                         try{
+                            //cloudAnchorManager.hostCloudAnchor(anchor, new HostListener());
+                            //Toast.makeText(getApplicationContext(),"Cloud Anchor id:"+anchor.getCloudAnchorId(),duration).show();
+                            Log.d("Cloud Anchor id: ",anchor.getCloudAnchorId());
                             Log.d("hello","works");
-
-
                             anchor = session.hostCloudAnchor(anchor);
                             //cloudAnchorManager.hostCloudAnchor(anchor, new HostListener());
                             String cloudAnchorID = anchor.getCloudAnchorId();
-
                             Log.d("Cloud Anchor id: ",anchor.getCloudAnchorId());
                             appAnchorState = AppAnchorState.HOSTING;
-
-                            Log.d("Cloud Anchor state: ",anchor.getCloudAnchorState()+"");}
+                            Log.d("Cloud Anchor state: ",anchor.getCloudAnchorState()+"");
+                            }
                         catch(CloudAnchorsNotConfiguredException e){
                             Log.d("anchor exception"," failed");
 
@@ -890,6 +887,7 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
+                            Toast.makeText(getApplicationContext(), "Quality:"+quality, Toast.LENGTH_SHORT).show();
                             String msg=String.format("widrh:%d height:%d deg:%f\r\nTapX:%f\tTapY:%f\r\nPose:%f %f %f\r\nx:%f\ty:%f\tz:%f\r\na:%d r:%d g:%d b:%d c:%d\r\ndepth:%d dx:%d dy:%d\r\ndepthHidth:%d depthHeight:%d\r\nxScale:%f yScale:%f",
                                     viewWidth,viewHeight,deg,
                                     x,y,
@@ -1198,6 +1196,7 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
+                Toast.makeText(getApplicationContext(), "Hello", Toast.LENGTH_SHORT).show();
                 String msg = String.format("width:%d height:%d deg:%f\r\noriginX:%f\toriginY:%f\r\nworldX:%f\tworldY:%f\tworldZ:%f\r\na:%d r:%d g:%d b:%d c:%d\r\ndepth:%d dx:%d dy:%d\r\n\r\n",
                         viewWidth, viewHeight, deg,
                         x, y,
@@ -1234,6 +1233,7 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
         public void onComplete(Anchor anchor) {
             runOnUiThread(
                     () -> {
+                        Toast.makeText(getApplicationContext(), "Hello", Toast.LENGTH_SHORT).show();
                         Anchor.CloudAnchorState state = anchor.getCloudAnchorState();
                         if (state.isError()) {
                             Log.e(TAG, "Error hosting a cloud anchor, state " + state);
@@ -1258,6 +1258,44 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
 
     }
     private void saveAnchorWithNickname() {
-        Log.d("saving","nickname");
+
+        HostDialogFragment hostDialogFragment = new HostDialogFragment();
+        // Supply num input as an argument.
+        Bundle args = new Bundle();
+
+        args.putString(
+                "nickname", getString(R.string.nickname_default, getNumStoredAnchors(sharedPreferences)));
+        hostDialogFragment.setOkListener(this::onAnchorNameEntered);
+        hostDialogFragment.setArguments(args);
+        hostDialogFragment.show(getSupportFragmentManager(), "HostDialog");
     }
+    private void onAnchorNameEntered(String anchorNickname) {
+        saveAnchorToStorage(cloudAnchorId, anchorNickname, sharedPreferences);
+        Toast.makeText(getApplicationContext(), getString(R.string.debug_hosting_success, cloudAnchorId), Toast.LENGTH_SHORT).show();
+        Intent sendIntent = new Intent();
+        sendIntent.setAction(Intent.ACTION_SEND);
+        sendIntent.putExtra(Intent.EXTRA_TEXT, cloudAnchorId);
+        sendIntent.setType("text/plain");
+        Intent shareIntent = Intent.createChooser(sendIntent, null);
+        startActivity(shareIntent);
+    }
+
+    private static void saveAnchorToStorage(String anchorId, String anchorNickname, SharedPreferences anchorPreferences) {
+        String hostedAnchorIds = anchorPreferences.getString(HOSTED_ANCHOR_IDS, "");
+        String hostedAnchorNames = anchorPreferences.getString(HOSTED_ANCHOR_NAMES, "");
+        String hostedAnchorMinutes = anchorPreferences.getString(HOSTED_ANCHOR_MINUTES, "");
+        hostedAnchorIds += anchorId + ";";
+        hostedAnchorNames += anchorNickname + ";";
+        hostedAnchorMinutes += TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis()) + ";";
+        anchorPreferences.edit().putString(HOSTED_ANCHOR_IDS, hostedAnchorIds).apply();
+        anchorPreferences.edit().putString(HOSTED_ANCHOR_NAMES, hostedAnchorNames).apply();
+        anchorPreferences.edit().putString(HOSTED_ANCHOR_MINUTES, hostedAnchorMinutes).apply();
+    }
+
+    private static int getNumStoredAnchors(SharedPreferences anchorPreferences) {
+            String hostedAnchorIds = anchorPreferences.getString(ScanActivity.HOSTED_ANCHOR_IDS, "");
+        return hostedAnchorIds.split(";", -1).length - 1;
+    }
+
 }
+
