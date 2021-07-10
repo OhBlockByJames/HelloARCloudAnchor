@@ -14,6 +14,7 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.PopupMenu;
 import android.widget.TextView;
@@ -226,7 +227,9 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
         pc= new ArrayList<>();
         Button twoDbtn=(Button)findViewById(R.id.twodee);
         //add resolve button
-        Button resolveButton =(Button)findViewById(R.id.resolve);
+        Button resolveButton=(Button)findViewById(R.id.resolve);
+        EditText resolveInput=(EditText)findViewById(R.id.input_anchor);
+
         twoDbtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -236,7 +239,10 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
         resolveButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-               resolveAnchor();
+                String resolve_ID=resolveInput.getText().toString();
+                Toast.makeText(getApplicationContext(), "resolve ID: "+resolve_ID, Toast.LENGTH_SHORT).show();
+                Log.d("resolve ID: ",resolve_ID);
+                resolveCloudAnchor(resolve_ID);
             }
         });
         // Set up touch listener.
@@ -287,13 +293,16 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
             //intent.putExtra("data",pc);
             startActivity(intent);
     }
-    private void resolveAnchor(){
 
-        PointCloudSaving.pointC=pc;
-        Intent intent=new Intent(this,PointCloudDrawing.class);
+    //add for resolve
+    public Anchor resolveCloudAnchor(String cloudAnchorId){
 
-        startActivity(intent);
+        session.resolveCloudAnchor(cloudAnchorId);
+        return anchor;
     }
+
+
+
 
     /** Menu button to launch feature specific settings. */
     protected boolean settingsMenuClick(MenuItem item) {
@@ -745,7 +754,7 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
                         || (trackable instanceof InstantPlacementPoint)) {
                     // Cap the number of objects created. This avoids overloading both the
                     // rendering system and ARCore.
-                    if (anchors.size() >= 40) {
+                    if (anchors.size() >= 30) {
                         anchors.get(0).detach();
                         anchors.remove(0);
                     }
@@ -888,6 +897,7 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
                         @Override
                         public void run() {
                             Toast.makeText(getApplicationContext(), "Quality:"+quality, Toast.LENGTH_SHORT).show();
+
                             String msg=String.format("widrh:%d height:%d deg:%f\r\nTapX:%f\tTapY:%f\r\nPose:%f %f %f\r\nx:%f\ty:%f\tz:%f\r\na:%d r:%d g:%d b:%d c:%d\r\ndepth:%d dx:%d dy:%d\r\ndepthHidth:%d depthHeight:%d\r\nxScale:%f yScale:%f",
                                     viewWidth,viewHeight,deg,
                                     x,y,
@@ -1251,7 +1261,7 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
 
     private void setNewAnchor(Anchor newAnchor) {
 
-            if (anchors.size()>40) {
+            if (anchors.size()>30) {
                 anchor.detach();
             }
             anchor = newAnchor;
