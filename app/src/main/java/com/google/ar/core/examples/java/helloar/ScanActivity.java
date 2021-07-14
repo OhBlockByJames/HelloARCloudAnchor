@@ -298,6 +298,7 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
     public Anchor resolveCloudAnchor(String cloudAnchorId){
 
         session.resolveCloudAnchor(cloudAnchorId);
+
         return anchor;
     }
 
@@ -837,13 +838,13 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
                         return;
                     }
                       anchor = session.hostCloudAnchor(anchor);
-//                    cloudAnchorManager.hostCloudAnchor(anchor, new HostListener());
+                    //cloudAnchorManager.hostCloudAnchor(anchor, new HostListener());
 //                    Toast.makeText(getApplicationContext(),"Cloud Anchor id:"+anchor.getCloudAnchorId(),duration).show();
 //                    Log.d("Cloud Anchor id: ",anchor.getCloudAnchorId());
                     Log.d("Cloud Anchor state: ",anchor.getCloudAnchorState()+"");
                     if (quality==SUFFICIENT||quality==GOOD&&cameraTrackingState==TrackingState.TRACKING){
                         try{
-                            //cloudAnchorManager.hostCloudAnchor(anchor, new HostListener());
+                            cloudAnchorManager.hostCloudAnchor(anchor, new HostListener());
                             //Toast.makeText(getApplicationContext(),"Cloud Anchor id:"+anchor.getCloudAnchorId(),duration).show();
                             Log.d("Cloud Anchor id: ",anchor.getCloudAnchorId());
                             Log.d("hello","works");
@@ -855,12 +856,12 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
                             Log.d("Cloud Anchor state: ",anchor.getCloudAnchorState()+"");
                             }
                         catch(CloudAnchorsNotConfiguredException e){
-                            Log.d("anchor exception"," failed");
+                            Log.d("anchor exception"," CloudAnchorsNotConfiguredException");
 
                         }
                     }
                     else{
-                        Log.d("anchor exception",quality+"");
+                        Log.d("Quality Insufficient: ",quality+"");
                     }
 
                     
@@ -868,7 +869,7 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
                     FirebaseDatabase database = FirebaseDatabase.getInstance();
                     DatabaseReference myRef = database.getReference("message");
 
-                    myRef.setValue("anchor0");
+                    myRef.setValue(anchor.getCloudAnchorId());
                     // Read from the database
                     myRef.addValueEventListener(new ValueEventListener() {
                         @Override
@@ -876,7 +877,7 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
                             // This method is called once with the initial value and again
                             // whenever data at this location is updated.
                             String value = dataSnapshot.getValue(String.class);
-                            Log.d(TAG, "Value is: " + value);
+                            Log.d(TAG, "Firebase Cloud Anchor ID: " + value);
                         }
 
                         @Override
@@ -918,7 +919,6 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
                     // Adding an Anchor tells ARCore that it should track this position in
                     // space. This anchor is created on the Plane to place the 3D model
                     // in the correct position relative both to the world and to the plane.
-
                     anchors.add(anchor);
 
                     // For devices that support the Depth API, shows a dialog to suggest enabling
@@ -1218,23 +1218,6 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
         });
         
     }
-
-    private void autoScan(Frame frame, Camera camera) throws NotYetAvailableException, InterruptedException {
-        int colSum = viewHeight;
-        int rowSum = viewWidth;
-
-        for (int x=0; x<rowSum; x+=100) {
-            for (int y = 0; y < rowSum; y += 100) {
-//                Thread.sleep(5*1000);
-                try {
-                    toWorldCoordinate(x, y, frame);
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
     /* Listens for a hosted anchor. */
     private final class HostListener implements CloudAnchorManager.CloudAnchorListener {
         private String cloudAnchorId;
