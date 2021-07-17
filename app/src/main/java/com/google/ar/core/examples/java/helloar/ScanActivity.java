@@ -86,6 +86,7 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.ar.core.Session.FeatureMapQuality.GOOD;
+import static com.google.ar.core.Session.FeatureMapQuality.INSUFFICIENT;
 import static com.google.ar.core.Session.FeatureMapQuality.SUFFICIENT;
 
 
@@ -731,6 +732,7 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
     private void handleTap(Frame frame, Camera camera,TrackingState cameraTrackingState) {
         //找到全部的TAP
         MotionEvent tap = tapHelper.poll();
+
         //辨識出TAP放入list內
         if (tap != null && camera.getTrackingState() == TrackingState.TRACKING) {
             List<HitResult> hitResultList;
@@ -829,9 +831,10 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
 
 
                     Anchor anchor = session.createAnchor(pose);
+                    Anchor cloud_anchor = session.createAnchor(pose);
+                    anchors.add(anchor);
                     Session.FeatureMapQuality quality = session.estimateFeatureMapQualityForHosting(frame.getCamera().getPose());
                     Log.d("quality: ",quality+"");
-                    int duration = Toast.LENGTH_LONG;
                     Anchor.CloudAnchorState state = anchor.getCloudAnchorState();
                     if (state.isError()) {
                         Log.e(TAG, "Error hosting a cloud anchor, state " + state);
@@ -841,17 +844,18 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
                     //cloudAnchorManager.hostCloudAnchor(anchor, new HostListener());
 //                    Toast.makeText(getApplicationContext(),"Cloud Anchor id:"+anchor.getCloudAnchorId(),duration).show();
 //                    Log.d("Cloud Anchor id: ",anchor.getCloudAnchorId());
+
                     Log.d("Cloud Anchor state: ",anchor.getCloudAnchorState()+"");
                     if (quality==SUFFICIENT||quality==GOOD&&cameraTrackingState==TrackingState.TRACKING){
                         try{
-                            cloudAnchorManager.hostCloudAnchor(anchor, new HostListener());
+                            cloudAnchorManager.hostCloudAnchor(cloud_anchor, new HostListener());
                             //Toast.makeText(getApplicationContext(),"Cloud Anchor id:"+anchor.getCloudAnchorId(),duration).show();
-                            Log.d("Cloud Anchor id: ",anchor.getCloudAnchorId());
-                            Log.d("hello","works");
-                            anchor = session.hostCloudAnchor(anchor);
+                            Log.d("Cloud Anchor id: ",cloud_anchor.getCloudAnchorId());
+                            Log.d("cloud anchor","works");
+                            //anchor = session.hostCloudAnchor(anchor);
                             //cloudAnchorManager.hostCloudAnchor(anchor, new HostListener());
-                            String cloudAnchorID = anchor.getCloudAnchorId();
-                            Log.d("Cloud Anchor id: ",anchor.getCloudAnchorId());
+                            String cloudAnchorID = cloud_anchor.getCloudAnchorId();
+                            Log.d("Cloud Anchor id: ",cloudAnchorID);
                             appAnchorState = AppAnchorState.HOSTING;
                             Log.d("Cloud Anchor state: ",anchor.getCloudAnchorState()+"");
                             }
@@ -897,9 +901,11 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            Toast.makeText(getApplicationContext(), "Quality:"+quality, Toast.LENGTH_SHORT).show();
+                            if (quality==INSUFFICIENT||quality==SUFFICIENT){
+                            Toast.makeText(getApplicationContext(), "Quality: "+quality+" TRACKING STATE: "+cameraTrackingState, Toast.LENGTH_SHORT).show();
+                            }
 
-                            String msg=String.format("widrh:%d height:%d deg:%f\r\nTapX:%f\tTapY:%f\r\nPose:%f %f %f\r\nx:%f\ty:%f\tz:%f\r\na:%d r:%d g:%d b:%d c:%d\r\ndepth:%d dx:%d dy:%d\r\ndepthHidth:%d depthHeight:%d\r\nxScale:%f yScale:%f",
+                            String msg=String.format("width:%d height:%d deg:%f\r\nTapX:%f\tTapY:%f\r\nPose:%f %f %f\r\nx:%f\ty:%f\tz:%f\r\na:%d r:%d g:%d b:%d c:%d\r\ndepth:%d dx:%d dy:%d\r\ndepthWidth:%d depthHeight:%d\r\nxScale:%f yScale:%f",
                                     viewWidth,viewHeight,deg,
                                     x,y,
                                     hitPos.tx(),hitPos.ty(), hitPos.tz(),
@@ -1090,6 +1096,7 @@ public class ScanActivity extends AppCompatActivity implements SampleRender.Rend
     /** Configures the session with feature settings. */
     private void configureSession() {
         Config config = session.getConfig();
+
         //add
         cloudAnchorManager = new CloudAnchorManager(session);
         config.setCloudAnchorMode(Config.CloudAnchorMode.ENABLED);
